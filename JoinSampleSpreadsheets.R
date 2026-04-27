@@ -12,10 +12,6 @@ library(readxl)
 
 ### Establish which classes are equivalent to vegetated or unvegetated ###
 
-#!!!! Issue: not all datasets have names. Can pull from the classification tracking document to apply names based on label and date.
-
-
-
 #### |||| #### |||| ####
 
 ### Load datasets files ###
@@ -27,7 +23,7 @@ filenames <- list.files(here("Samples", "IndividualFiles"), pattern = "*.csv", f
 ldf <- lapply(filenames, function(x) {read.csv(x) %>% mutate(filename = gsub(paste0(here("Samples", "IndividualFiles"), "/"), "", x))})
 
 ## Bind each dataframe to each other
-samples <- bind_rows(ldf, .id = "column_label")
+samples <- bind_rows(ldf)
 
 ## Pull the site code, ortho date, and date that the file was created from the file name.
 samples <- samples %>% 
@@ -51,7 +47,9 @@ siteNames <- read_xlsx(here("Metadata", "SiteNamesMetadata.xlsx"))
 
 samples <- merge(samples, siteNames, by = "SiteCode")
 
+## Verify that all names are entirely lowercase
 
+samples$name <- tolower(samples$name)
 
 #### |||| #### |||| ####
 
@@ -59,16 +57,15 @@ samples <- merge(samples, siteNames, by = "SiteCode")
 
 ## Need to transpose the "class" columns so that there is a "label" column and multiple rows with 1, 2, 3, etc. and a class name column...
 
-classNames <- trackingSheet %>% 
-  select(c("Subarea", "Date8Digit", "Class0", "Class1", "Class2", "Class3", "Class4", "Class5")) %>% 
-  pivot_longer(c(Class0, Class1, Class2, Class3, Class4, Class5), names_to = "label", values_to = "name") %>% 
-  mutate(label = gsub("Class", "", label)) %>% 
-  mutate(label = as.integer(label))
+# classNames <- trackingSheet %>% 
+#   select(c("Subarea", "Date8Digit", "Class0", "Class1", "Class2", "Class3", "Class4", "Class5")) %>% 
+#   pivot_longer(c(Class0, Class1, Class2, Class3, Class4, Class5), names_to = "label", values_to = "name") %>% 
+#   mutate(label = gsub("Class", "", label)) %>% 
+#   mutate(label = as.integer(label))
 
 
 
 
-test <- merge(samples, classNames)
 
 
 #test <- pivot_longer(classNames, c(Class0, Class1, Class2, Class3, Class4, Class5), names_to = "Label", values_to = "Name")
