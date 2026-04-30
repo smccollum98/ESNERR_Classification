@@ -12,18 +12,24 @@ library(readxl)
 
 ### Establish which classes are equivalent to vegetated or unvegetated ###
 
+binary_names <- data.frame(label = c(0, 1),
+                          name = c("unvegetated", "vegetated"))
+
+other_names <- data.frame(label = c(0, 1),
+                          name = c('name1', 'name 2'))
+
 #### |||| #### |||| ####
 
 ### Load datasets files ###
 
 ## Retrieve name of each file in the individual sample file folder
-filenames <- list.files(here("Samples", "IndividualFiles"), pattern = "*.csv", full.names = TRUE)
+filenames_samples <- list.files(here("Samples", "IndividualFiles"), pattern = "*.csv", full.names = TRUE)
 
 ## Read each of those sample files, make a list of them. Add the filename (sans pathway) as a parameter value.
-ldf <- lapply(filenames, function(x) {read.csv(x) %>% mutate(filename = gsub(paste0(here("Samples", "IndividualFiles"), "/"), "", x))})
+sample_dataframe_list <- lapply(filenames_samples, function(x) {read.csv(x) %>% mutate(filename = gsub(paste0(here("Samples", "IndividualFiles"), "/"), "", x))})
 
 ## Bind each dataframe to each other
-samples <- bind_rows(ldf)
+samples <- bind_rows(sample_dataframe_list)
 
 ## Pull the site code, ortho date, and date that the file was created from the file name.
 samples <- samples %>% 
@@ -52,6 +58,39 @@ samples <- merge(samples, siteNames, by = "SiteCode")
 samples$name <- tolower(samples$name)
 
 #### |||| #### |||| ####
+
+
+### Load the accuracy assessment points.
+
+
+## Retrieve name of each file in the individual sample file folder
+filenames_accuracy <- list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)
+
+## Read each of those sample files, make a list of them. Add the filename (sans pathway) as a parameter value. 
+accuracy_dataframe_list <- lapply(filenames_accuracy, function(x) {read.csv(x) %>% ## Read each .csv file in the folder.
+    mutate(filename = gsub(paste0(here("AccuracyAssessment"), "/"), "", x)) %>%  ## Make a column with file names.
+    mutate(binary = ifelse(substr(.$filename, 22, 27) == "binary", 1, 0)) %>% ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
+    mutate(true_name = ifelse(binary == 1, "hello", "bye"))
+  })
+
+## Bind each dataframe to each other
+accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>% 
+  select(-c(RASTERVALU))## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
+
+## Add names "GrndTrth_name" and "Classified_name"
+test <- apply(accuracy_assessment_points, function(x){
+  
+  
+  
+})
+## Apply names to the 
+
+
+
+
+
+
+
 
 ### Add class names to data without them ###
 
