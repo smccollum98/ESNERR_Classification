@@ -70,20 +70,23 @@ filenames_accuracy <- list.files(here("AccuracyAssessment"), pattern = "*.csv", 
 accuracy_dataframe_list <- lapply(filenames_accuracy, function(x) {read.csv(x) %>% ## Read each .csv file in the folder.
     mutate(filename = gsub(paste0(here("AccuracyAssessment"), "/"), "", x)) %>%  ## Make a column with file names.
     mutate(binary = ifelse(substr(.$filename, 22, 27) == "binary", 1, 0)) %>% ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
-    mutate(true_name = ifelse(binary == 1, "hello", "bye"))
+    #mutate(true_name = ifelse(binary == 1, "hello", "bye"))
+    #left_join(ifelse(substr(.$filename, 22, 27) == "binary", binary_names, other_names))
+    left_join(binary_names, by = "label")
   })
 
 ## Bind each dataframe to each other
 accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>% 
-  select(-c(RASTERVALU))## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
+  select(-c(RASTERVALU))  ## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
 
-## Add names "GrndTrth_name" and "Classified_name"
-test <- apply(accuracy_assessment_points, function(x){
+## Populate the f_cover column with <1> for suspect for any row without a <-3> (rejected/missing) and a greater than 50% difference from the previous year.
   
   
-  
-})
-## Apply names to the 
+### !!!
+# Maybe instead of applying the name to the dataset, we can add names when displaying results from that data. 
+  # When displaying, we will have subset to a given file (date/site combo) so we won't need to do complicated conditional statements or iterate through df
+  # Instead, before displaying, check date, site, and binary code. Join to binary_names by label or other_names by label, date, and site.
+
 
 
 
