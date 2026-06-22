@@ -26,7 +26,7 @@ trackingSheet <- read_xlsx(here("Classification_Tracking_Sheet.xlsx"), sheet = "
 siteNames <- read_xlsx(here("Metadata", "SiteNamesMetadata.xlsx"))
 
 ## Categorize possible land cover classes into vegetated or unvegetated
-landCoverClasses <- a ## Add!
+# landCoverClasses <- a ## Add!
 
 #### |||| #### |||| ####
 
@@ -113,6 +113,8 @@ classification_results <- bind_rows(classification_dataframe_list)
 
 ## As is, this data represents what we would want to create. I want to be able to work with the raw output of the Arc model.
 
+
+## Below code is assuming that there is an F column. This would have to be made manually.
 
 ## Populate the f_cover column with <1> for suspect for any row without a <-3> (rejected/missing) and a greater than 50% difference from the previous year.
 ## The math will need work but the idea is there.
