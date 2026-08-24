@@ -16,19 +16,30 @@ library(exactextractr) ## Used for extracting raster data that is within polygon
     ## Then, it will check the raster folder for any un-analyzed rasters (based on date), analyze them, and append them.
     ## File with appended data will be saved as a new file with an analysis date. This is to make it easy to undo analyses.
 
+#### User Inputs ####
+
 ## Site input. This will be used to instruct the model of which folder to look in.
 site <- "HP2"
 
+## Define what type of polygon data should be extracted from.
 geotype <- "grid"
 
+#### |||| #### |||| ####
+
+#### Loading Data ####
+
 ## Check for an appended dataset for this site. If it exists, read it. If it doesn't exist, make one at the end of the script.
-ifelse(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis.csv"))) == TRUE,
-               existed <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis.csv"))),
+ifelse(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE,
+               existed <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))),
                existingfile <- 'false'
        )
 
 ## Retrieve the name of each raster file. Not sure that I can load each...
 filenames_rasters <- list.files(here("ClassificationRasters", site), pattern = "*.tif", full.names = TRUE)
+
+## Make list of filenames in the appended datafile
+#alreadAnalyzed <- unique(existed$fileName)
+#filenames_rasters <- filenames_rasters[ !filenames_rasters %in% alreadyAnalyzed]
 
 ## Make a list of the rasters
 rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
@@ -38,6 +49,27 @@ analysis_geometry <- st_read(here("AnalysisGrid", site, paste0(site, "_analysis_
 
 ## Make a list of each column in the analysis geometry.
 geo_column_names <- colnames(analysis_geometry)
+
+# For each raster in the list of rasters, extract the area of each land cover
+  ## class in each polygon.
+extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
+  exact_extract(x, analysis_geometry, append_cols = geo_column_names, include_area = TRUE,
+                function(value, coverage_area) {table(value)}) %>% 
+    mutate(name = names(x), site = site)## Add the raster filename to the table
+}))) %>% 
+  mutate(date = substr(.$name, 5, 10))
+
+# extracted2 <- extracted %>% 
+#   mutate(date = substr(.$name, 5, 10))
+
+
+
+
+
+
+
+
+
 
 ## Remove rasters from list that have already been analyzed.
 # if(existingfile == 'false'){
@@ -53,36 +85,6 @@ geo_column_names <- colnames(analysis_geometry)
 # })
 
 ## mapply takes multiple arguments but seems to spit it out in a bad format??
-
-test <- lapply(rasters_list, function(x) {
-  exact_extract(x, analysis_geometry, append_cols = geo_column_names,
-                function(value, coverage_fraction ) {table(value)}) %>% 
-    mutate(name = names(x), site = site)## Add the raster filename to the table
-})
-
-test[[1]] <- test[[1]] %>%
-  mutate(date = substr(.$name(5,10)))
-
-
-## Add the date from the raster file name to the table
-
-
-## Stitch the tables together
-complete_data <- bind_rows(test)
-
-
-
-
-raster <- rast(here("ClassificationRasters", site, "HP2_230428_RF_241230.tif"))
-
-
-test <- exact_extract(raster, analysis_geometry, function(value, coverage_fraction ) {table(value)}, 
-                      append_cols = geo_column_names)
-
-
-
-
-
 
 
 

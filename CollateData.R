@@ -61,12 +61,12 @@ samples$name <- tolower(samples$name)
 ## Create column for vegetated/unvegetated classification (convert land cover class names).
 
 ## Create a list of land cover classes that are considered "vegetated".
-vegetatedClasses = c('vegetated', 'woodyvegetation', 'juicyvegetation', 'pickleweed', 'spergularia', 
+vegetatedClasses <- c('vegetated', 'woodyvegetation', 'juicyvegetation', 'pickleweed', 'spergularia', 
                      'frankenia', 'jaumea', 'distichlis')
 
 ## Create a "vegetation" column. For each samples, if the class name is in the vegetatedClasses list, 
   ## assign it the value "vegetated". Otherwise, it is "unvegetated".
-samples = samples %>% 
+samples <- samples %>% 
   mutate(name=replace(name,name=="vegetatedwoody","woodyvegetation")) %>% 
   mutate(vegetation = ifelse(name %in% vegetatedClasses, 'vegetated', 'unvegetated'))
 
