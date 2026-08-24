@@ -30,16 +30,17 @@ geotype <- "grid"
 
 ## Check for an appended dataset for this site. If it exists, read it. If it doesn't exist, make one at the end of the script.
 ifelse(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE,
-               existed <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))),
-               existingfile <- 'false'
-       )
+            previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))),
+            previouslyExtracted <- 'FALSE')
 
 ## Retrieve the name of each raster file. Not sure that I can load each...
 filenames_rasters <- list.files(here("ClassificationRasters", site), pattern = "*.tif", full.names = TRUE)
 
-## Make list of filenames in the appended datafile
-#alreadAnalyzed <- unique(existed$fileName)
-#filenames_rasters <- filenames_rasters[ !filenames_rasters %in% alreadyAnalyzed]
+## Remove all rasters from the raster list that have names that match with filenames in the previouslyextracted dataframe
+if(is.data.frame(previouslyExtracted) == TRUE){
+  previouslyExtractedRasters <- unique(previouslyExtracted$name)
+  rasters <- filenames_rasters[!grepl(previouslyExtractedRasters, filenames_rasters)]
+}
 
 ## Make a list of the rasters
 rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
@@ -53,11 +54,45 @@ geo_column_names <- colnames(analysis_geometry)
 # For each raster in the list of rasters, extract the area of each land cover
   ## class in each polygon.
 extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
-  exact_extract(x, analysis_geometry, append_cols = geo_column_names, include_area = TRUE,
+  exact_extract(x, analysis_geometry, append_cols = geo_column_names,
                 function(value, coverage_area) {table(value)}) %>% 
     mutate(name = names(x), site = site)## Add the raster filename to the table
 }))) %>% 
   mutate(date = substr(.$name, 5, 10))
+
+
+
+
+#### Exporting Data ####
+
+# Pseudo code
+# Check for presence of existing file.
+# If it exists, load it, bind_rows, and export the updated version.
+# If it doesn't exist, export the extracted files as that excel.
+
+## Can even move the old version to a "deprecated" folder!
+
+if(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE){
+  new <- bind_rows(previouslyExtracted, extracted)
+  write.csv(new, file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+} else {
+  write.csv(extracted, file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+}
+
+
+
+
+previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+
+
+## Make list of filenames in the appended datafile
+# alreadAnalyzed <- unique(existed$fileName)
+# filenames_rasters <- filenames_rasters[ !filenames_rasters %in% alreadyAnalyzed]
+
+
+
+
+
 
 # extracted2 <- extracted %>% 
 #   mutate(date = substr(.$name, 5, 10))
