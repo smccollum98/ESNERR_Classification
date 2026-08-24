@@ -7,13 +7,10 @@
 
 #### Install packages ####
 
-library(here)
-library(dplyr)
-library(tidyr)
-library(readxl)
-
-
-
+library(here) # Locate files within project folder
+library(dplyr) # Manipulate data
+library(tidyr) # Manipulate data
+library(readxl) # Read excel format files
 
 #### Initializing global variables and dataframes ####
 
@@ -45,7 +42,7 @@ sample_dataframe_list <- lapply(filenames_samples, function(x) {read.csv(x) %>%
 ## Bind each dataframe to each other
 samples <- bind_rows(sample_dataframe_list)
 
-## Pull the site code, ortho date, and date that the file was created from the file name.
+## Pull from the file name the site code, ortho date, and date that the file was created.
 samples <- samples %>% 
   mutate(SiteCode = substr(.$filename, 1, 3)) %>% 
   mutate(orthomosaicdate = substr(.$filename, 6, 13)) %>% 
@@ -55,11 +52,23 @@ samples <- samples %>%
   mutate(day = substr(.$orthomosaicdate, 7, 8)) %>% 
   mutate(date = paste0(year, "-", month, "-", day))
 
-## Add appropriate site information from site name metadata
+## Add standard ESNERR region, sub-region, area, and sub-area data from siteNames.
 samples <- merge(samples, siteNames, by = "SiteCode")
 
 ## Verify that all land cover class names are lowercase
 samples$name <- tolower(samples$name)
+
+## Create column for vegetated/unvegetated classification (convert land cover class names).
+
+## Create a list of land cover classes that are considered "vegetated".
+vegetatedClasses = c('vegetated', 'woodyvegetation', 'juicyvegetation', 'pickleweed', 'spergularia', 
+                     'frankenia', 'jaumea', 'distichlis')
+
+## Create a "vegetation" column. For each samples, if the class name is in the vegetatedClasses list, 
+  ## assign it the value "vegetated". Otherwise, it is "unvegetated".
+samples = samples %>% 
+  mutate(name=replace(name,name=="vegetatedwoody","woodyvegetation")) %>% 
+  mutate(vegetation = ifelse(name %in% vegetatedClasses, 'vegetated', 'unvegetated'))
 
 ### Export collated dataset ###
 
@@ -75,21 +84,22 @@ write.csv(samples, here("Samples", paste0("ESNERR_Classification_Samples_", form
 ### Load individual datasets ###
 
 ## Retrieve name of each file in the individual sample file folder
-filenames_accuracy <- list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)
+filenames_accuracy <- list.files(here("AccuracyAssessment", "IndividualFiles"), pattern = "*.csv", full.names = TRUE)
 
 ## Read each of those sample files, make a list of them. Add the filename (sans pathway) as a parameter value. 
 accuracy_dataframe_list <- lapply(filenames_accuracy, function(x) {read.csv(x) %>% ## Read each .csv file in the folder.
     mutate(filename = gsub(paste0(here("AccuracyAssessment"), "/"), "", x)) %>%  ## Make a column with file names.
-    mutate(binary = ifelse(substr(.$filename, 22, 27) == "binary", 1, 0)) ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
+    mutate(binary = ifelse(grepl('binary', filename), 1, 0)) ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
 })
 
 ## Bind each dataframe to each other
 accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>% 
-  select(-c(RASTERVALU))  ## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
+  select(-c(RASTERVALU, ## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
+            GrndTruth2))  ## Remove "GrndTruth2" (a copy of the ground truth created in some instances in ArcGIS Pro).
 
 ### Export the collated accuracy assessment points ###
 
-write.csv(accuracy_assessment_points, here("Samples", paste0("ESNERR_AccuracyAssessment_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
+write.csv(accuracy_assessment_points, here("AccuracyAssessment", paste0("ESNERR_AccuracyAssessment_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
 
 #### |||| #### |||| ####
 
