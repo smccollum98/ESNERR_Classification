@@ -22,9 +22,6 @@ trackingSheet <- read_xlsx(here("Classification_Tracking_Sheet.xlsx"), sheet = "
 ## Site name metadata
 siteNames <- read_xlsx(here("Metadata", "SiteNamesMetadata.xlsx"))
 
-## Categorize possible land cover classes into vegetated or unvegetated
-# landCoverClasses <- a ## Add!
-
 #### |||| #### |||| ####
 
 

@@ -2,7 +2,7 @@
 
 ### Load Packages ###
 library(sf)
-library(dplyr)
+library(tidyverse)
 library(here)
 library(ggplot2)
 library(stars) # Used for loading and managing geometry data
@@ -24,6 +24,10 @@ site <- "HP2"
 ## Define what type of polygon data should be extracted from.
 geotype <- "grid"
 
+## Define what classes are considered "vegetated"
+vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salicornia",
+                      "jaumea", "frankenia", "distichlis", "astroplex")
+
 #### |||| #### |||| ####
 
 #### Loading Data ####
@@ -38,8 +42,8 @@ filenames_rasters <- list.files(here("ClassificationRasters", site), pattern = "
 
 ## Remove all rasters from the raster list that have names that match with filenames in the previouslyextracted dataframe
 if(is.data.frame(previouslyExtracted) == TRUE){
-  previouslyExtractedRasters <- unique(previouslyExtracted$name)
-  rasters <- filenames_rasters[!grepl(previouslyExtractedRasters, filenames_rasters)]
+  previouslyExtractedRasters <- unique(previouslyExtracted$filename)
+  filenames_rasters <- filenames_rasters[!grepl(previouslyExtractedRasters, filenames_rasters)]
 }
 
 ## Make a list of the rasters
@@ -55,10 +59,36 @@ geo_column_names <- colnames(analysis_geometry)
   ## class in each polygon.
 extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
   exact_extract(x, analysis_geometry, append_cols = geo_column_names,
-                function(value, coverage_area) {table(value)}) %>% 
-    mutate(name = names(x), site = site)## Add the raster filename to the table
+                function(value, coverage_fraction) {table(value)}) %>% 
+    mutate(filename = names(x), SiteCode = site)## Add the raster filename to the table
 }))) %>% 
-  mutate(date = substr(.$name, 5, 10))
+  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>% 
+  mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>%
+  rename(label = `result.value`,
+         count = `result.Freq`) %>% 
+  left_join(
+    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>% 
+      select(c(SiteCode, label, name, orthomosaicdate)) %>% 
+      filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
+    by = c("SiteCode", "label", "orthomosaicdate"),
+    suffix = c("", ".y")) %>% 
+  select(-c(ends_with(".y"), "label")) %>% 
+  pivot_wider(names_from = name, values_from = count)
+
+
+
+
+
+# 
+# iddf <- read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>% 
+#   select(c(SiteCode, label, name, orthomosaicdate)) %>% 
+#   filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate)))
+# 
+# test <- extracted %>% 
+#   left_join(iddf, 
+#             by = c("SiteCode", "label", "orthomosaicdate"),
+#             suffix = c("", ".y")) %>% 
+#   select(-ends_with(".y"))
 
 
 
@@ -74,15 +104,19 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
 
 if(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE){
   new <- bind_rows(previouslyExtracted, extracted)
-  write.csv(new, file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+  write.csv(new, 
+            file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")),
+            row.names = FALSE)
 } else {
-  write.csv(extracted, file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+  write.csv(extracted, 
+            file = here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")),
+            row.names = FALSE)
 }
 
 
 
 
-previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
+# previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
 
 
 ## Make list of filenames in the appended datafile
