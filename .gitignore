@@ -9,3 +9,4 @@ ClassificationRasters/
 ClassificationResults/
 .tif
 AccuracyAssessment/
+TimeSeries.R

@@ -72,12 +72,11 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
   mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>%
   rename(label = `result.value`,
          count = `result.Freq`) %>%
-  # mutate(count = replace(count, is.na(.), 0)) %>% 
   left_join(
     read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
       select(c(SiteCode, label, name, orthomosaicdate,
                year, month, day, date,
-               Region, Subregion, Area, `Subarea (Optional)`)) %>%
+               Region, Subregion, Area)) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
     by = c("SiteCode", "label", "orthomosaicdate"),
     suffix = c("", ".y")) %>%
