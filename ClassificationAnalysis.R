@@ -19,14 +19,18 @@ library(exactextractr) ## Used for extracting raster data that is within polygon
 #### User Inputs ####
 
 ## Site input. This will be used to instruct the model of which folder to look in.
-site <- "HP2"
+site <- "HP1"
 
 ## Define what type of polygon data should be extracted from.
 geotype <- "grid"
 
 ## Define what classes are considered "vegetated"
 vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salicornia",
-                      "jaumea", "frankenia", "distichlis", "astroplex")
+                      "jaumea", "frankenia", "distichlis", "astroplex", "submergedVegetation")
+
+## Define what classes are considered "unvegetated"
+unvegetatedClasses <- c("unvegetated", "mud", "wetmud", "drymud", "sediment", "water",
+                      "wrack", "ulvawrack", "seagrasswrack", "algae", "shallowwater")
 
 #### |||| #### |||| ####
 
@@ -43,14 +47,16 @@ filenames_rasters <- list.files(here("ClassificationRasters", site), pattern = "
 ## Remove all rasters from the raster list that have names that match with filenames in the previouslyextracted dataframe
 if(is.data.frame(previouslyExtracted) == TRUE){
   previouslyExtractedRasters <- unique(previouslyExtracted$filename)
-  filenames_rasters <- filenames_rasters[!grepl(previouslyExtractedRasters, filenames_rasters)]
+  filenames_rasters <- filenames_rasters[!grepl(paste(previouslyExtractedRasters, collapse = "|"), 
+                                                filenames_rasters)]
 }
 
 ## Make a list of the rasters
 rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
 
 ## Retrieve the analysis geometry.
-analysis_geometry <- st_read(here("AnalysisGrid", site, paste0(site, "_analysis_geometry_", geotype, ".shp")))
+analysis_geometry <- st_read(here("AnalysisGrid", site, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
+  mutate(row = row_number())
 
 ## Make a list of each column in the analysis geometry.
 geo_column_names <- colnames(analysis_geometry)
@@ -61,47 +67,37 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
   exact_extract(x, analysis_geometry, append_cols = geo_column_names,
                 function(value, coverage_fraction) {table(value)}) %>% 
     mutate(filename = names(x), SiteCode = site)## Add the raster filename to the table
-}))) %>% 
-  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>% 
+}))) %>%
+  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>%
   mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>%
   rename(label = `result.value`,
-         count = `result.Freq`) %>% 
+         count = `result.Freq`) %>%
+  # mutate(count = replace(count, is.na(.), 0)) %>% 
   left_join(
-    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>% 
-      select(c(SiteCode, label, name, orthomosaicdate)) %>% 
+    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+      select(c(SiteCode, label, name, orthomosaicdate,
+               year, month, day, date,
+               Region, Subregion, Area, `Subarea (Optional)`)) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
     by = c("SiteCode", "label", "orthomosaicdate"),
-    suffix = c("", ".y")) %>% 
-  select(-c(ends_with(".y"), "label")) %>% 
-  pivot_wider(names_from = name, values_from = count)
-
-
-
-
-
-# 
-# iddf <- read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>% 
-#   select(c(SiteCode, label, name, orthomosaicdate)) %>% 
-#   filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate)))
-# 
-# test <- extracted %>% 
-#   left_join(iddf, 
-#             by = c("SiteCode", "label", "orthomosaicdate"),
-#             suffix = c("", ".y")) %>% 
-#   select(-ends_with(".y"))
-
+    suffix = c("", ".y")) %>%
+  select(-c(ends_with(".y"), "label")) %>%
+  pivot_wider(names_from = name, values_from = count, values_fill = 0) %>%
+  rowwise() %>%
+  mutate(overallVegetated = sum(c_across(any_of(vegetatedClasses))), # Sum all vegetated classes
+         overallUnvegetated = sum(c_across(any_of(unvegetatedClasses))), # Sum all unvegetated classes
+         percentVegetated = round((overallVegetated/(overallVegetated+overallUnvegetated))*100, 3)) # Calculate the percent veg cover
+  
+  
+#### |||| #### |||| ####
 
 
 
 #### Exporting Data ####
 
-# Pseudo code
-# Check for presence of existing file.
-# If it exists, load it, bind_rows, and export the updated version.
-# If it doesn't exist, export the extracted files as that excel.
-
-## Can even move the old version to a "deprecated" folder!
-
+## Check if the collated data exists for this site already.
+  ## If it does, upload it, join the current extracted data to it, and re-export it, replacing the file.
+  ## If it doesn't, export the current extracted data as an excel.
 if(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE){
   new <- bind_rows(previouslyExtracted, extracted)
   write.csv(new, 
@@ -113,47 +109,10 @@ if(file.exists(here("ClassificationResults", site, paste0(site, "_classification
             row.names = FALSE)
 }
 
+#### |||| #### |||| ####
 
 
 
-# previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv")))
-
-
-## Make list of filenames in the appended datafile
-# alreadAnalyzed <- unique(existed$fileName)
-# filenames_rasters <- filenames_rasters[ !filenames_rasters %in% alreadyAnalyzed]
-
-
-
-
-
-
-# extracted2 <- extracted %>% 
-#   mutate(date = substr(.$name, 5, 10))
-
-
-
-
-
-
-
-
-
-
-## Remove rasters from list that have already been analyzed.
-# if(existingfile == 'false'){
-#   ## check raster dates against dates in appended data file. remove matches.
-# }
-
-
-## Iterate through the raster list, extracting the coverage fraction of each value within each analysis geometry
-# test <- mapply(rasters_list, filenames_rasters, FUN = function(x, y) {
-#   exact_extract(x, analysis_geometry, append_cols = geo_column_names,
-#                 function(value, coverage_fraction ) {table(value)}) %>% 
-#     mutate(filename = gsub(paste0(here("ClassificationRasters", site), "/"), "", y))## Add the raster filename to the table
-# })
-
-## mapply takes multiple arguments but seems to spit it out in a bad format??
 
 
 
