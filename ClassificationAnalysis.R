@@ -87,7 +87,19 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
          overallUnvegetated = sum(c_across(any_of(unvegetatedClasses))), # Sum all unvegetated classes
          percentVegetated = round((overallVegetated/(overallVegetated+overallUnvegetated))*100, 3)) # Calculate the percent veg cover
   
+
+
+
+
+test <- read.csv(list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)) %>% 
+  mutate(correct = ifelse(GrndTruth == Classified, 1, 0)) %>%
+  # mutate(OA = summarize(mean(correct)))
+  group_by(c(filename)) %>%
+  summarize(mean(correct))
   
+
+
+
 #### |||| #### |||| ####
 
 

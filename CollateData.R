@@ -17,7 +17,7 @@ library(readxl) # Read excel format files
 ### Load data frames ###
 
 ## Classification Tracking Sheet
-trackingSheet <- read_xlsx(here("Classification_Tracking_Sheet.xlsx"), sheet = "TrackingData")
+trackingSheet <- read_xlsx(here("Metadata", "Classification_Tracking_Sheet.xlsx"), sheet = "TrackingData")
 
 ## Site name metadata
 siteNames <- read_xlsx(here("Metadata", "SiteNamesMetadata.xlsx"))
@@ -42,8 +42,8 @@ samples <- bind_rows(sample_dataframe_list)
 ## Pull from the file name the site code, ortho date, and date that the file was created.
 samples <- samples %>% 
   mutate(SiteCode = substr(.$filename, 1, 3)) %>% 
-  mutate(orthomosaicdate = substr(.$filename, 6, 13)) %>% 
-  mutate(filedate = substr(.$filename, 15, 22)) %>% 
+  mutate(orthomosaicdate = substr(.$filename, 5, 12)) %>% 
+  mutate(filedate = substr(.$filename, 17, 24)) %>% 
   mutate(year = substr(.$orthomosaicdate, 1, 4)) %>% 
   mutate(month = substr(.$orthomosaicdate, 5, 6)) %>% 
   mutate(day = substr(.$orthomosaicdate, 7, 8)) %>% 
@@ -85,14 +85,55 @@ filenames_accuracy <- list.files(here("AccuracyAssessment", "IndividualFiles"), 
 
 ## Read each of those sample files, make a list of them. Add the filename (sans pathway) as a parameter value. 
 accuracy_dataframe_list <- lapply(filenames_accuracy, function(x) {read.csv(x) %>% ## Read each .csv file in the folder.
-    mutate(filename = gsub(paste0(here("AccuracyAssessment"), "/"), "", x)) %>%  ## Make a column with file names.
-    mutate(binary = ifelse(grepl('binary', filename), 1, 0)) ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
+    mutate(filename = gsub(paste0(here("AccuracyAssessment", "IndividualFiles"), "/"), "", x)) #%>%  ## Make a column with file names.
+    # mutate(binary = ifelse(grepl('binary', filename), 1, 0)) ## If the data is binary, make the "binaryclass" value 1. This informs the program of how to refer to this data.
 })
 
 ## Bind each dataframe to each other
 accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>% 
   select(-c(RASTERVALU, ## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
-            GrndTruth2))  ## Remove "GrndTruth2" (a copy of the ground truth created in some instances in ArcGIS Pro).
+            GrndTruth2)) %>%   ## Remove "GrndTruth2" (a copy of the ground truth created in some instances in ArcGIS Pro).
+  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12)),
+         SiteCode = substr(.$filename, 1, 3),
+         filedate = substr(.$filename, 17, 24)) %>% 
+  mutate( ## A second mutate() call so that it can reference columns created in the previous call
+         year = substr(.$orthomosaicdate, 1, 4),
+         month = substr(.$orthomosaicdate, 5, 6),
+         day = substr(.$orthomosaicdate, 7, 8),
+         date = paste0(year, "-", month, "-", day)
+         ) %>% 
+  rename(
+    trueLabel = GrndTruth,
+    predictedLabel = Classified
+  ) %>% 
+  left_join(siteNames, by = "SiteCode") %>% 
+  left_join(
+    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+      select(SiteCode, orthomosaicdate, label, name) %>%
+      filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
+      rename(trueLabel = label) %>%
+      rename(trueName = name),
+    by = c("SiteCode", "trueLabel", "orthomosaicdate")
+  ) %>% 
+  left_join(
+    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+      select(SiteCode, orthomosaicdate, label, name) %>%
+      filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
+      rename(predictedLabel = label) %>%
+      rename(predictedName = name),
+    by = c("SiteCode", "predictedLabel", "orthomosaicdate")
+  ) %>% 
+  select(-c(predictedLabel, trueLabel)) %>%
+  mutate(trueNameVegUnveg = ifelse(trueName %in% vegetatedClasses, 'vegetated', 'unvegetated'),
+         predictedNameVegUnveg = ifelse(predictedName %in% vegetatedClasses, 'vegetated', 'unvegetated')) %>% 
+  mutate(correct = ifelse(trueName == predictedName, 1, 0),
+         correctVegUnveg = ifelse(trueNameVegUnveg == predictedNameVegUnveg, 1, 0)
+  )
+
+## Need to left_join to create a "PredictedClass" and "TrueClass" column with names - Check
+## Need to make a "correct" column with 1/0 for correct or incorrect
+## Need to make an overall vegetated and overall unvegetated column - check
+## Need to add the date and site data from the data curation standards.
 
 ### Export the collated accuracy assessment points ###
 
