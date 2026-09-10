@@ -20,7 +20,7 @@ library(readxl) # Read excel format files
 trackingSheet <- read_xlsx(here("Metadata", "Classification_Tracking_Sheet.xlsx"), sheet = "TrackingData")
 
 ## Site name metadata
-siteNames <- read_xlsx(here("Metadata", "SiteNamesMetadata.xlsx"))
+siteNames <- read_xlsx(here("Metadata", "Site_Names_Metadata.xlsx"))
 
 #### |||| #### |||| ####
 
@@ -68,6 +68,20 @@ samples <- samples %>%
   mutate(vegetation = ifelse(name %in% vegetatedClasses, 'vegetated', 'unvegetated'))
 
 ### Export collated dataset ###
+
+## Move old version to the "deprecated" folder.
+
+existing_sp_collated <- list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)
+
+existing_sp_collated %>% lapply(function(x){
+  filename <- sub('.*/', '', x) ## Remove the slashes and everything before them to get the filename.
+  file.rename(from = x,
+              to = 
+                paste0(sub(filename, '', x), ## Get the file pathway excluding the filename.
+                       "/Deprecated/", ## Add the deprecated folder to the file pathway
+                       filename)) ## Add the filename back to the end of the pathway
+})
+
 
 ## Export to the samples folder. Add the current date to end for posterity.
 
@@ -130,49 +144,27 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
          correctVegUnveg = ifelse(trueNameVegUnveg == predictedNameVegUnveg, 1, 0)
   )
 
-## Need to left_join to create a "PredictedClass" and "TrueClass" column with names - Check
-## Need to make a "correct" column with 1/0 for correct or incorrect
-## Need to make an overall vegetated and overall unvegetated column - check
-## Need to add the date and site data from the data curation standards.
 
 ### Export the collated accuracy assessment points ###
+
+## Move old files to "deprecated" folder
+
+existing_aa_collated <- list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)
+
+existing_aa_collated %>% lapply(function(x){
+  filename <- sub('.*/', '', x) ## Remove the slashes and everything before them to get the filename.
+  file.rename(from = x,
+              to = 
+                paste0(sub(filename, '', x), ## Get the file pathway excluding the filename.
+                       "/Deprecated/", ## Add the deprecated folder to the file pathway
+                       filename)) ## Add the filename back to the end of the pathway
+})
+
+## Create new file with the new data
 
 write.csv(accuracy_assessment_points, here("AccuracyAssessment", paste0("ESNERR_AccuracyAssessment_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
 
 #### |||| #### |||| ####
-
-
-#### Classification Results ####
-
-## The choice here is to use the classification results from the ArcGIS analysis or pull the data using R.
-
-### Load datasets ###
-
-## Retrieve name of each file in the individual sample file folder
-filenames_classification <- list.files(here("ClassificationResults"), pattern = "*.csv", full.names = TRUE)
-
-## Read each of those sample files, make a list of them. Add the filename (sans pathway) as a parameter value. 
-classification_dataframe_list <- lapply(filenames_classification, function(x) {read.csv(x) %>% ## Read each .csv file in the folder.
-    mutate(filename = gsub(paste0(here("ClassificationResults"), "/"), "", x))  ## Make a column with file names.
-})
-
-## Bind each dataframe to each other
-classification_results <- bind_rows(classification_dataframe_list)
-
-## As is, this data represents what we would want to create. I want to be able to work with the raw output of the Arc model.
-
-
-## Below code is assuming that there is an F column. This would have to be made manually.
-
-## Populate the f_cover column with <1> for suspect for any row without a <-3> (rejected/missing) and a greater than 50% difference from the previous year.
-## The math will need work but the idea is there.
-## This code maintains a <-3> code which is rejected or missing and would have been applied in ArcGIS Pro.
-  ## If the data shows a large jump, flag is as suspect.
-classification_results %>% mutate(f_cover = ifelse(f_cover == "<-3>", "<-3>", ifelse(cover_change > .5*cover, "<1>", "<0>")))
-
-
-
-
 
 
 

@@ -55,7 +55,7 @@ if(is.data.frame(previouslyExtracted) == TRUE){
 rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
 
 ## Retrieve the analysis geometry.
-analysis_geometry <- st_read(here("AnalysisGrid", site, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
+analysis_geometry <- st_read(here("AnalysisGeometry", site, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
   mutate(row = row_number())
 
 ## Make a list of each column in the analysis geometry.
