@@ -1,22 +1,32 @@
-## Raster analysis
 
-### Load Packages ###
-library(sf)
-library(tidyverse)
-library(here)
-library(ggplot2)
+############################## Raster Analysis ##############################
+## This script is used to extract classification raster data (.tiff) within
+## user-provided analysis geometries (.shp). The user should run the            
+## CollateData.R script with the sample data and accuracy assessment data
+## first. User must define the area of interest and analysis geometry type.
+## The script will check for existing curated classification data for the 
+## area of interest and only extract data for rasters not previously analyzed.
+## Ouput is a curated .csv of land cover percent cover within each geometry 
+## for each classification raster with standardized site and date data for 
+## cross-referencing.
+##
+## Elkhorn Slough National Estuarine Reserved
+## Sean McCollum, seanmccollum98@gmail.com
+############################################################################
+
+
+
+###////Load Packages\\\\###
+
+library(tidyverse) # Used for managing and manipulating datasets
+library(here) # Used for locating files within the project directory
 library(stars) # Used for loading and managing geometry data
 library(terra) # Used for loading and managing raster data
 library(exactextractr) ## Used for extracting raster data that is within polygons
 
-## How to make it easy to use this with several rasters, update existing collated data?
-## Maybe:
-  ## Manually create a .csv file in a folder where analyzed data is collated.
-    ## Code can check that file for which dates have been analyzed.
-    ## Then, it will check the raster folder for any un-analyzed rasters (based on date), analyze them, and append them.
-    ## File with appended data will be saved as a new file with an analysis date. This is to make it easy to undo analyses.
 
-#### User Inputs ####
+
+####////User Inputs\\\\####
 
 ## Site input. This will be used to instruct the model of which folder to look in.
 site <- "HP1"
@@ -32,16 +42,16 @@ vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salico
 unvegetatedClasses <- c("unvegetated", "mud", "wetmud", "drymud", "sediment", "water",
                       "wrack", "ulvawrack", "seagrasswrack", "algae", "shallowwater")
 
-#### |||| #### |||| ####
 
-#### Loading Data ####
+
+####////Loading Data\\\\####
 
 ## Check for an appended dataset for this site. If it exists, read it. If it doesn't exist, make one at the end of the script.
 ifelse(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE,
             previouslyExtracted <- read.csv(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))),
             previouslyExtracted <- 'FALSE')
 
-## Retrieve the name of each raster file. Not sure that I can load each...
+## Retrieve the name of each raster file.
 filenames_rasters <- list.files(here("ClassificationRasters", site), pattern = "*.tif", full.names = TRUE)
 
 ## Remove all rasters from the raster list that have names that match with filenames in the previouslyextracted dataframe
@@ -56,49 +66,43 @@ rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
 
 ## Retrieve the analysis geometry.
 analysis_geometry <- st_read(here("AnalysisGeometry", site, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
-  mutate(row = row_number())
+  mutate(row = row_number()) ## Make a unique ID for each geometry, which is necessary for later code.
 
 ## Make a list of each column in the analysis geometry.
 geo_column_names <- colnames(analysis_geometry)
 
-# For each raster in the list of rasters, extract the area of each land cover
-  ## class in each polygon.
-extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) {
+# For each raster in the list of rasters, extract the area of each land cover class in each polygon.
+extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lapply to apply function to each item in list
   exact_extract(x, analysis_geometry, append_cols = geo_column_names,
-                function(value, coverage_fraction) {table(value)}) %>% 
-    mutate(filename = names(x), SiteCode = site)## Add the raster filename to the table
+                function(value, coverage_fraction) {table(value)}) %>% # extract coverage_fraction of each class in each geometry 
+    mutate(filename = names(x), SiteCode = site) ## Add the raster filename to the table
 }))) %>%
-  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>%
-  mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>%
+  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>% # Pull the date out of the filename
+  mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>% # Convert the extraction output to numeric
   rename(label = `result.value`,
          count = `result.Freq`) %>%
-  left_join(
-    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
-      select(c(SiteCode, label, name, orthomosaicdate,
-               year, month, day, date,
-               Region, Subregion, Area)) %>%
-      filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
-    by = c("SiteCode", "label", "orthomosaicdate"),
-    suffix = c("", ".y")) %>%
-  select(-c(ends_with(".y"), "label")) %>%
-  pivot_wider(names_from = name, values_from = count, values_fill = 0) %>%
+  mutate(
+    filedate = substr(.$filename, 17, 24),
+    year = substr(.$orthomosaicdate, 1, 4),
+    month = substr(.$orthomosaicdate, 5, 6),
+    day = substr(.$orthomosaicdate, 7, 8),
+    date = paste0(year, "-", month, "-", day)
+  ) %>% 
+  merge(., siteNames, by = "SiteCode") %>% 
+  # left_join( # Join the standardized site and date data from the samples dataset. Shouldn't I just use the metadata?
+  #   read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+  #     select(c(SiteCode, label, name, orthomosaicdate,
+  #              year, month, day, date,
+  #              Region, Subregion, Area)) %>%
+  #     filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
+  #   by = c("SiteCode", "label", "orthomosaicdate"),
+  #   suffix = c("", ".y")) %>%
+  # select(-c(ends_with(".y"), "label")) %>%
+  pivot_wider(names_from = name, values_from = count, values_fill = 0) %>% # Pivot so that each class is a column
   rowwise() %>%
   mutate(overallVegetated = sum(c_across(any_of(vegetatedClasses))), # Sum all vegetated classes
          overallUnvegetated = sum(c_across(any_of(unvegetatedClasses))), # Sum all unvegetated classes
          percentVegetated = round((overallVegetated/(overallVegetated+overallUnvegetated))*100, 3)) # Calculate the percent veg cover
-  
-
-
-
-
-test <- read.csv(list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)) %>% 
-  mutate(correct = ifelse(GrndTruth == Classified, 1, 0)) %>%
-  # mutate(OA = summarize(mean(correct)))
-  group_by(c(filename)) %>%
-  summarize(mean(correct))
-  
-
-
 
 #### |||| #### |||| ####
 
