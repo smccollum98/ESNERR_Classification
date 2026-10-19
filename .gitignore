@@ -5,8 +5,15 @@
 .positai
 Output/
 Samples/
-**/ClassificationRasters/
-**/ClassificationResults/
-.tif
+
+
+/ClassificationResults/
+
+# Ignore .tif files (classification rasters)
+*.tif
+
+# Ignore files within the accuracy assessment folder
 AccuracyAssessment/
+
+# Ignore the TimeSeries R script - This is specific to our use.
 TimeSeries.R
