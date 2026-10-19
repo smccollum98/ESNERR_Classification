@@ -71,13 +71,13 @@ samples <- samples %>%
 
 ## Move old version to the "deprecated" folder.
 
-existing_sp_collated <- list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)
+existing_sp_collated <- list.files(here("Samples", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)
 
 existing_sp_collated %>% lapply(function(x){
   filename <- sub('.*/', '', x) ## Remove the slashes and everything before them to get the filename.
   file.rename(from = x,
               to = 
-                paste0(sub(filename, '', x), ## Get the file pathway excluding the filename.
+                paste0(sub(paste0("/CollatedFiles/", filename), '', x), ## Get the file pathway excluding the filename.
                        "/Deprecated/", ## Add the deprecated folder to the file pathway
                        filename)) ## Add the filename back to the end of the pathway
 })
@@ -85,7 +85,7 @@ existing_sp_collated %>% lapply(function(x){
 
 ## Export to the samples folder. Add the current date to end for posterity.
 
-write.csv(samples, here("Samples", paste0("ESNERR_Classification_Samples_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
+write.csv(samples, here("Samples", "CollatedFiles", paste0("ESNERR_Classification_Samples_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
 
 #### |||| #### |||| ####
 
@@ -122,7 +122,7 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
   ) %>%
   left_join(siteNames, by = "SiteCode") %>% 
   left_join(
-    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+    read.csv(list.files(here("Samples", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(SiteCode, orthomosaicdate, label, name) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
       rename(trueLabel = label) %>%
@@ -130,7 +130,7 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
     by = c("SiteCode", "trueLabel", "orthomosaicdate")
   ) %>% 
   left_join(
-    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+    read.csv(list.files(here("Samples", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(SiteCode, orthomosaicdate, label, name) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
       rename(predictedLabel = label) %>%
@@ -139,8 +139,8 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
   ) %>% 
   ## Check if the aa data is binary. if it is, rename to unveg/veg
   mutate(trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 0), "unvegetated", trueName),
-         trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 1), "vegetated", trueName)) #%>% 
-  select(-c(predictedLabel, trueLabel)) %>%
+         trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 1), "vegetated", trueName)) %>% 
+  # select(-c(predictedLabel, trueLabel)) %>%
   mutate(trueNameVegUnveg = ifelse(trueName %in% vegetatedClasses, 'vegetated', 'unvegetated'),
          predictedNameVegUnveg = ifelse(predictedName %in% vegetatedClasses, 'vegetated', 'unvegetated')) %>% 
   mutate(correct = ifelse(trueName == predictedName, 1, 0),
@@ -152,20 +152,20 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
 
 ## Move old files to "deprecated" folder
 
-existing_aa_collated <- list.files(here("AccuracyAssessment"), pattern = "*.csv", full.names = TRUE)
+existing_aa_collated <- list.files(here("AccuracyAssessment", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)
 
 existing_aa_collated %>% lapply(function(x){
   filename <- sub('.*/', '', x) ## Remove the slashes and everything before them to get the filename.
   file.rename(from = x,
               to = 
-                paste0(sub(filename, '', x), ## Get the file pathway excluding the filename.
+                paste0(sub(paste0("/CollatedFiles/", filename), '', x), ## Get the file pathway excluding the filename.
                        "/Deprecated/", ## Add the deprecated folder to the file pathway
                        filename)) ## Add the filename back to the end of the pathway
 })
 
 ## Create new file with the new data
 
-write.csv(accuracy_assessment_points, here("AccuracyAssessment", paste0("ESNERR_AccuracyAssessment_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
+write.csv(accuracy_assessment_points, here("AccuracyAssessment", "CollatedFiles", paste0("ESNERR_AccuracyAssessment_", format(Sys.Date(), format = "%Y%m%d"), ".csv")), row.names = FALSE)
 
 #### |||| #### |||| ####
 
