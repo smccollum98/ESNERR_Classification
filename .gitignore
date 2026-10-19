@@ -4,7 +4,7 @@
 .Ruserdata
 .positai
 Output/
-Samples/
+
 
 
 /ClassificationResults/
@@ -17,3 +17,8 @@ AccuracyAssessment/
 
 # Ignore the TimeSeries R script - This is specific to our use.
 TimeSeries.R
+
+# Ignore the contents of the Sample sub-directories.
+Samples/Deprecated
+Samples/IndividualFiles
+Samples/CollatedSamples
