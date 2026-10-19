@@ -3,17 +3,20 @@
 .RData
 .Ruserdata
 .positai
+
+## Ignore the output folder.
 Output/
 
-
-
-/ClassificationResults/
+## Ignore the ClassificationResults Folder.
+ClassificationResults/
 
 # Ignore .tif files (classification rasters)
 *.tif
 
 # Ignore files within the accuracy assessment folder
-AccuracyAssessment/
+AccuracyAssessment/Deprecated
+AccuracyAssessment/IndividualFiles
+AccuracyAssessment/CollatedFiles
 
 # Ignore the TimeSeries R script - This is specific to our use.
 TimeSeries.R
@@ -21,4 +24,4 @@ TimeSeries.R
 # Ignore the contents of the Sample sub-directories.
 Samples/Deprecated
 Samples/IndividualFiles
-Samples/CollatedSamples
+Samples/CollatedFiles
