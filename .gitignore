@@ -5,8 +5,8 @@
 .positai
 Output/
 Samples/
-ClassificationRasters/
-ClassificationResults/
+**/ClassificationRasters/
+**/ClassificationResults/
 .tif
 AccuracyAssessment/
 TimeSeries.R
