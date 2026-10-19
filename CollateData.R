@@ -107,7 +107,7 @@ accuracy_dataframe_list <- lapply(filenames_accuracy, function(x) {read.csv(x) %
 accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>% 
   select(-c(RASTERVALU, ## Remove the "RASTERVALU" column, it's redundant with the "Classified" column. Also OK to remove before bringing the data in.
             GrndTruth2)) %>%   ## Remove "GrndTruth2" (a copy of the ground truth created in some instances in ArcGIS Pro).
-  mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12)),
+ mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12)),
          SiteCode = substr(.$filename, 1, 3),
          filedate = substr(.$filename, 17, 24)) %>% 
   mutate( ## A second mutate() call so that it can reference columns created in the previous call
@@ -117,9 +117,9 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
          date = paste0(year, "-", month, "-", day)
          ) %>% 
   rename(
-    trueLabel = GrndTruth,
-    predictedLabel = Classified
-  ) %>% 
+    trueLabel = trueclass,
+    predictedLabel = predictedclass
+  ) %>%
   left_join(siteNames, by = "SiteCode") %>% 
   left_join(
     read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
@@ -137,6 +137,9 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
       rename(predictedName = name),
     by = c("SiteCode", "predictedLabel", "orthomosaicdate")
   ) %>% 
+  ## Check if the aa data is binary. if it is, rename to unveg/veg
+  mutate(trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 0), "unvegetated", trueName),
+         trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 1), "vegetated", trueName)) #%>% 
   select(-c(predictedLabel, trueLabel)) %>%
   mutate(trueNameVegUnveg = ifelse(trueName %in% vegetatedClasses, 'vegetated', 'unvegetated'),
          predictedNameVegUnveg = ifelse(predictedName %in% vegetatedClasses, 'vegetated', 'unvegetated')) %>% 

@@ -23,7 +23,7 @@ library(here) # Used for locating files within the project directory
 library(stars) # Used for loading and managing geometry data
 library(terra) # Used for loading and managing raster data
 library(exactextractr) ## Used for extracting raster data that is within polygons
-
+library(readxl)
 
 
 ####////User Inputs\\\\####
@@ -32,7 +32,7 @@ library(exactextractr) ## Used for extracting raster data that is within polygon
 site <- "HP1"
 
 ## Define what type of polygon data should be extracted from.
-geotype <- "grid"
+geotype <- "rootball"
 
 ## Define what classes are considered "vegetated"
 vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salicornia",
@@ -45,6 +45,9 @@ unvegetatedClasses <- c("unvegetated", "mud", "wetmud", "drymud", "sediment", "w
 
 
 ####////Loading Data\\\\####
+
+## Site name metadata
+siteNames <- read_xlsx(here("Metadata", "Site_Names_Metadata.xlsx"))
 
 ## Check for an appended dataset for this site. If it exists, read it. If it doesn't exist, make one at the end of the script.
 ifelse(file.exists(here("ClassificationResults", site, paste0(site, "_classification_analysis_", geotype, ".csv"))) == TRUE,
@@ -65,7 +68,7 @@ if(is.data.frame(previouslyExtracted) == TRUE){
 rasters_list <- lapply(filenames_rasters, function(x) {rast(x)})
 
 ## Retrieve the analysis geometry.
-analysis_geometry <- st_read(here("AnalysisGeometry", site, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
+analysis_geometry <- st_read(here("AnalysisGeometry", site, geotype, paste0(site, "_analysis_geometry_", geotype, ".shp"))) %>% 
   mutate(row = row_number()) ## Make a unique ID for each geometry, which is necessary for later code.
 
 ## Make a list of each column in the analysis geometry.
@@ -81,23 +84,15 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lappl
   mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>% # Convert the extraction output to numeric
   rename(label = `result.value`,
          count = `result.Freq`) %>%
-  mutate(
-    filedate = substr(.$filename, 17, 24),
-    year = substr(.$orthomosaicdate, 1, 4),
-    month = substr(.$orthomosaicdate, 5, 6),
-    day = substr(.$orthomosaicdate, 7, 8),
-    date = paste0(year, "-", month, "-", day)
-  ) %>% 
-  merge(., siteNames, by = "SiteCode") %>% 
-  # left_join( # Join the standardized site and date data from the samples dataset. Shouldn't I just use the metadata?
-  #   read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
-  #     select(c(SiteCode, label, name, orthomosaicdate,
-  #              year, month, day, date,
-  #              Region, Subregion, Area)) %>%
-  #     filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
-  #   by = c("SiteCode", "label", "orthomosaicdate"),
-  #   suffix = c("", ".y")) %>%
-  # select(-c(ends_with(".y"), "label")) %>%
+  left_join( # Join the standardized site and date data from the samples dataset. Shouldn't I just use the metadata?
+    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+      select(c(SiteCode, label, name, orthomosaicdate,
+               year, month, day, date,
+               Region, Subregion, Area)) %>%
+      filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))),
+    by = c("SiteCode", "label", "orthomosaicdate"),
+    suffix = c("", ".y")) %>%
+  select(-c(ends_with(".y"), "label")) %>%
   pivot_wider(names_from = name, values_from = count, values_fill = 0) %>% # Pivot so that each class is a column
   rowwise() %>%
   mutate(overallVegetated = sum(c_across(any_of(vegetatedClasses))), # Sum all vegetated classes
@@ -125,11 +120,5 @@ if(file.exists(here("ClassificationResults", site, paste0(site, "_classification
 }
 
 #### |||| #### |||| ####
-
-
-
-
-
-
 
 
