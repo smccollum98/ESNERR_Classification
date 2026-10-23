@@ -76,10 +76,52 @@ for(i in 1:nrow(con)){
 
 conProp <- as.data.frame(conProp)
 
-propMatrix <- conProp %>% pivot_wider(names_from = Reference, values_from = Freq) %>% 
-  column_to_rownames(var = "Prediction")
+
+propMatrixAll <- as.matrix(conProp %>% pivot_wider(names_from = Reference, values_from = Freq) %>% 
+  column_to_rownames(var = "Prediction"))
+
+# 
+# for(h in 1:nrow(propMatrix)){
+#   
+#   OA <- sum(diag())
+#   
+#   
+# }
+
+
+## Calculate user accuracy
+for(u in 1:nrow(propMatrixAll)){
+  
+  # class <- row.names(propMatrixAll[i,])
+  # print(class)
+  # print(u)
+  # print(propMatrix)
+  # print(propMatrixAll[u,u])
+  # print(sum(propMatrixAll[u,]))
+  ua <- propMatrixAll[u,u]/sum(propMatrixAll[u,])
+  print(ua)
+  
+  pa <- propMatrixAll[u,u]/sum(propMatrixAll[,u])
+  print(pa)
+  
+}
+
+
+
 
 output <- data.frame()
+
+
+dat_all <- dat %>% 
+  rename("label" = `result.value`) %>% 
+  # mutate(area = summarize(sum(result.Freq))) %>% 
+  group_by(label) %>% 
+  summarize(area = sum(result.Freq)) %>% #Make a custom name?
+  ungroup() %>% 
+  # group_by(Fill_Class) %>%
+  mutate(ID = cur_group_id()) %>%
+  mutate(areaProp = area/sum(area)) %>% 
+  ungroup()
 
 dat_fill <- dat %>% 
   rename("label" = `result.value`) %>% 
@@ -105,19 +147,23 @@ for(x in 1:length(unique(dat_fill$ID))){
     }
   }
   
+  print(propMatrix)
+  
   propMatrix <- as.data.frame(propMatrix) %>%
     group_by(Reference) %>% 
     summarize(sampleAreaProp = sum(Freq)) %>% 
     mutate(label = row_number()-1)
   
+  # print(propMatrix)
+
   
   region <- left_join(region, propMatrix)
   
   ## Next to calculate the CI and attach to the region table.
-  
-  for(i in 1:nrow(con)){
-    region[i,"areaProp"][[1]]*propMa
-  }
+  # 
+  # for(i in 1:nrow(con)){
+  #   region[i,"areaProp"][[1]]*propMa
+  # }
   
   output <- rbind(output, region)
   
@@ -133,8 +179,11 @@ for(x in 1:length(unique(dat_fill$ID))){
 
 
 
-## Need a separate table for each sub-region. Then, 
+output %>% 
+  mutate(OA = sum(diag(as.matrix(propMatrixAll))))
 
+## Need a separate table for each sub-region. Then, 
+class(sum(diag(as.matrix(propMatrixAll))))
 
 # for each i,
   # mapClass = rowName(con[i,])
