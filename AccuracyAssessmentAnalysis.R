@@ -101,6 +101,8 @@ for(u in 1:nrow(propMatrixAll)){
   ua <- propMatrixAll[u,u]/sum(propMatrixAll[u,])
   print(ua)
   
+  ua_CI <- propMatrixAll[u,u]
+  
   pa <- propMatrixAll[u,u]/sum(propMatrixAll[,u])
   print(pa)
   
@@ -140,14 +142,16 @@ for(x in 1:length(unique(dat_fill$ID))){
   region <- dat_fill %>% filter(ID == x)
 
   propMatrix <- con
-
+  
   for(i in 1:nrow(con)){
     for(j in 1:ncol(con)){
       propMatrix[i,j] <- (con[i,j]/sum(con[i,]))*region[i,"areaProp"][[1]]
     }
   }
   
-  print(propMatrix)
+  # print(propMatrix)
+  # 
+  # print()
   
   propMatrix <- as.data.frame(propMatrix) %>%
     group_by(Reference) %>% 
