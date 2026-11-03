@@ -88,42 +88,56 @@ propMatrixAll <- as.matrix(conProp %>% pivot_wider(names_from = Reference, value
 #   
 # }
 
+accuracies <- data.frame()
 
 ## Calculate user accuracy
 for(u in 1:nrow(propMatrixAll)){
   
-  # class <- row.names(propMatrixAll[i,])
-  # print(class)
-  # print(u)
-  # print(propMatrix)
-  # print(propMatrixAll[u,u])
-  # print(sum(propMatrixAll[u,]))
   ua <- propMatrixAll[u,u]/sum(propMatrixAll[u,])
-  print(ua)
-  
-  ua_CI <- propMatrixAll[u,u]
+
+  ua_CI <- sqrt((ua*(1-ua))/(sum(con[u,] - 1)))*1.96
+  # print(paste0("Olofsson: ", ua_CI_Olof))
   
   pa <- propMatrixAll[u,u]/sum(propMatrixAll[,u])
-  print(pa)
+  # print(pa)
+  
+  pa_CI <- "tbd"
+  
+  oa <- sum(diag(as.matrix(propMatrixAll)))/sum(propMatrixAll)
+  
+  oa_CI <- sqrt((sum(propMatrixAll[u,])^2)*ua*(1-ua)/(sum(con[u,]) - 1))*1.96
+  
+  tempTable <- data.frame(
+                    class = row.names(propMatrixAll)[u],
+                    "oa" = oa,
+                    "oa_CI" = oa_CI,
+                    "ua" = ua,
+                    "ua_CI" = ua_CI,
+                    "pa" = pa,
+                    "pa_CI" = pa_CI)
+  
+  accuracies <- rbind(accuracies, tempTable)
   
 }
 
+accuracies <- accuracies %>% 
+  mutate(oa_CI = sum(oa_CI))
 
 
-
+## Area estimates
 output <- data.frame()
 
 
-dat_all <- dat %>% 
-  rename("label" = `result.value`) %>% 
-  # mutate(area = summarize(sum(result.Freq))) %>% 
-  group_by(label) %>% 
-  summarize(area = sum(result.Freq)) %>% #Make a custom name?
-  ungroup() %>% 
-  # group_by(Fill_Class) %>%
-  mutate(ID = cur_group_id()) %>%
-  mutate(areaProp = area/sum(area)) %>% 
-  ungroup()
+# dat_all <- dat %>% 
+#   rename("label" = `result.value`) %>% 
+#   # mutate(area = summarize(sum(result.Freq))) %>% 
+#   group_by(label) %>% 
+#   summarize(area = sum(result.Freq)) %>% #Make a custom name?
+#   ungroup() %>% 
+#   # group_by(Fill_Class) %>%
+#   mutate(ID = cur_group_id()) %>%
+#   mutate(areaProp = area/sum(area)) %>% 
+#   ungroup()
 
 dat_fill <- dat %>% 
   rename("label" = `result.value`) %>% 
@@ -148,34 +162,52 @@ for(x in 1:length(unique(dat_fill$ID))){
       propMatrix[i,j] <- (con[i,j]/sum(con[i,]))*region[i,"areaProp"][[1]]
     }
   }
-  
   # print(propMatrix)
-  # 
-  # print()
+  ## Next to calculate the CI and attach to the region table.
+  
+  for(k in 1:ncol(con)){
+    
+    sumTerm <- 0
+    
+    for(i in 1:nrow(con)){
+      
+      a <- (region[i,"areaProp"][[1]]*propMatrix[i, k]-propMatrix[i, k]^2)/(con[i,]-1)
+      
+      sumTerm <- sumTerm + a
+      
+    }
+    
+    ## Create a table
+    
+    
+    
+    
+    print(gather(sumTerm, columnnames(sumTerm), "areaCI"))
+    
+  }
+  
   
   propMatrix <- as.data.frame(propMatrix) %>%
     group_by(Reference) %>% 
     summarize(sampleAreaProp = sum(Freq)) %>% 
     mutate(label = row_number()-1)
   
-  # print(propMatrix)
-
+  
+  
+  
+  
   
   region <- left_join(region, propMatrix)
   
-  ## Next to calculate the CI and attach to the region table.
+  
+  
+  
   # 
   # for(i in 1:nrow(con)){
   #   region[i,"areaProp"][[1]]*propMa
   # }
   
   output <- rbind(output, region)
-  
-  ## Need to get propMatrix to have format
-    # label | pred | ref
-  
-  
-  ## Calculating error
   
   
   

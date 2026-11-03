@@ -32,7 +32,7 @@ library(readxl)
 site <- "HP1"
 
 ## Define what type of polygon data should be extracted from.
-geotype <- "rootball"
+geotype <- "all"
 
 ## Define what classes are considered "vegetated"
 vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salicornia",
@@ -40,7 +40,8 @@ vegetatedClasses <- c("vegetated", "juicyvegetation", "woodyvegetation", "salico
 
 ## Define what classes are considered "unvegetated"
 unvegetatedClasses <- c("unvegetated", "mud", "wetmud", "drymud", "sediment", "water",
-                      "wrack", "ulvawrack", "seagrasswrack", "algae", "shallowwater")
+                      "wrack", "ulvawrack", "seagrasswrack", "algae", "shallowwater",
+                      "drysediment", "wetsediment")
 
 
 
@@ -76,7 +77,7 @@ geo_column_names <- colnames(analysis_geometry)
 
 # For each raster in the list of rasters, extract the area of each land cover class in each polygon.
 extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lapply to apply function to each item in list
-  exact_extract(x, analysis_geometry, append_cols = geo_column_names,
+  exact_extract(x, analysis_geometry, append_cols = geo_column_names, max_cells_in_memory = 3e+07,
                 function(value, coverage_fraction) {table(value)}) %>% # extract coverage_fraction of each class in each geometry 
     mutate(filename = names(x), SiteCode = site) ## Add the raster filename to the table
 }))) %>%
@@ -85,7 +86,7 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lappl
   rename(label = `result.value`,
          count = `result.Freq`) %>%
   left_join( # Join the standardized site and date data from the samples dataset. Shouldn't I just use the metadata?
-    read.csv(list.files(here("Samples"), pattern = "*.csv", full.names = TRUE)) %>%
+    read.csv(list.files(here("Samples","CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(c(SiteCode, label, name, orthomosaicdate,
                year, month, day, date,
                Region, Subregion, Area)) %>%
@@ -100,8 +101,6 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lappl
          percentVegetated = round((overallVegetated/(overallVegetated+overallUnvegetated))*100, 3)) # Calculate the percent veg cover
 
 #### |||| #### |||| ####
-
-
 
 #### Exporting Data ####
 
