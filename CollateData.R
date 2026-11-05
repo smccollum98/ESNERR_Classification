@@ -117,36 +117,50 @@ accuracy_assessment_points <- bind_rows(accuracy_dataframe_list) %>%
          date = paste0(year, "-", month, "-", day)
          ) %>% 
   rename(
-    trueLabel = trueclass,
-    predictedLabel = predictedclass
+    referenceLabel = trueclass,
+    mapLabel = predictedclass
   ) %>%
   left_join(siteNames, by = "SiteCode") %>% 
   left_join(
     read.csv(list.files(here("Samples", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(SiteCode, orthomosaicdate, label, name) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
-      rename(trueLabel = label) %>%
-      rename(trueName = name),
-    by = c("SiteCode", "trueLabel", "orthomosaicdate")
+      rename(referenceLabel = label) %>%
+      rename(referenceName = name),
+    by = c("SiteCode", "referenceLabel", "orthomosaicdate")
   ) %>% 
   left_join(
     read.csv(list.files(here("Samples", "CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(SiteCode, orthomosaicdate, label, name) %>%
       filter(!duplicated(paste0(SiteCode, label, name, orthomosaicdate))) %>%
-      rename(predictedLabel = label) %>%
-      rename(predictedName = name),
-    by = c("SiteCode", "predictedLabel", "orthomosaicdate")
+      rename(mapLabel = label) %>%
+      rename(mapName = name),
+    by = c("SiteCode", "mapLabel", "orthomosaicdate")
   ) %>% 
   ## Check if the aa data is binary. if it is, rename to unveg/veg
-  mutate(trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 0), "unvegetated", trueName),
-         trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 1), "vegetated", trueName)) %>% 
+  # mutate(trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 0), "unvegetated", trueName),
+         # trueName = ifelse((grepl("binary", .$filename) == TRUE & trueLabel == 1), "vegetated", trueName)) %>% 
   # select(-c(predictedLabel, trueLabel)) %>%
-  mutate(trueNameVegUnveg = ifelse(trueName %in% vegetatedClasses, 'vegetated', 'unvegetated'),
-         predictedNameVegUnveg = ifelse(predictedName %in% vegetatedClasses, 'vegetated', 'unvegetated')) %>% 
-  mutate(correct = ifelse(trueName == predictedName, 1, 0),
-         correctVegUnveg = ifelse(trueNameVegUnveg == predictedNameVegUnveg, 1, 0)
+  mutate(referenceNameVegUnveg = ifelse(referenceName %in% vegetatedClasses, 'vegetated', 'unvegetated'),
+         mapNameVegUnveg = ifelse(mapName %in% vegetatedClasses, 'vegetated', 'unvegetated')) %>%
+  mutate(correct = ifelse(referenceName == mapName, 1, 0),
+         correctVegUnveg = ifelse(referenceNameVegUnveg == mapNameVegUnveg, 1, 0)
   )
 
+## Create confusion matrices for each classification
+
+
+## AccuracyAssessmentPoints
+
+lapply(as.list(unique(accuracy_assessment_points$filename)), function(x){ # loop for each unique filename
+  
+  aa <- accuracy_assessment_points %>% filter(filename == x) ## filter aa points to current filename
+
+  cm <- confusionMatrix(factor(aa$referenceLabel), factor(aa$mapLabel))$table # Create a cm with the filtered points
+  
+  write.csv(cm, here("AccuracyAssessment", "ConfusionMatrices", gsub("AA", "cm", x))) # write a .csv of the cm
+  
+})
 
 ### Export the collated accuracy assessment points ###
 

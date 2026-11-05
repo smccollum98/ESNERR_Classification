@@ -84,8 +84,8 @@ extracted <- data.frame(bind_rows(lapply(rasters_list, function(x) { # Use lappl
   mutate(orthomosaicdate = as.numeric(substr(.$filename, 5, 12))) %>% # Pull the date out of the filename
   mutate(`result.value` = as.numeric(as.character((`result.value`)))) %>% # Convert the extraction output to numeric
   rename(label = `result.value`,
-         count = `result.Freq`) %>%
-  left_join( # Join the standardized site and date data from the samples dataset. Shouldn't I just use the metadata?
+         count = `result.Freq`) #%>%
+  left_join( # Join the standardized site and date data from the samples dataset. 
     read.csv(list.files(here("Samples","CollatedFiles"), pattern = "*.csv", full.names = TRUE)) %>%
       select(c(SiteCode, label, name, orthomosaicdate,
                year, month, day, date,
